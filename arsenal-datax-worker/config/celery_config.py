@@ -5,8 +5,9 @@ timezone = 'Asia/Shanghai'
 broker_url = "redis://:test@localhost:6379/0"
 result_backend = "redis://:test@localhost:6379/1"
 
+# 整个Celery的每分钟的并发, 如果任务量大可以多开一些来提高速度
 task_annotations = {
-    'tasks.add': {'rate_limit': '10/m'}
+    'tasks.add': {'rate_limit': '50/m'}
 }
 
 task_queues = [
