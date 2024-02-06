@@ -150,7 +150,7 @@ class ArsenalDataxWorker():
         src_username=job_info['src_user']
         src_password=job_info['src_passwd']
         # 目标库配置
-        dest_jdbc_url=f"jdbc:mysql://{job_info['src_url']}:{job_info['dest_port']}/{job_info['dest_database']}?characterEncoding=UTF-8&useSSL=false"
+        dest_jdbc_url=f"jdbc:mysql://{job_info['dest_url']}:{job_info['dest_port']}/{job_info['dest_database']}?characterEncoding=UTF-8&useSSL=false"
         dest_table=job_info['dest_table']
         dest_username=job_info['dest_user']
         dest_password=job_info['dest_passwd']
