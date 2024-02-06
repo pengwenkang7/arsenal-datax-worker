@@ -65,27 +65,32 @@ class ParseCrontab():
         except ValueError as e:
             raise ValueError(f"{e}")
 
-    # 判断当前时间是否需要执行, 需要返回True, 不需要返回False, 也可用于判断定时任务格式是否正确
-    def calculate_execution(self):
+    # 判断当前时间是否需要执行, 需要返回True, 不需要返回False, 也可用于判断定时任务格式是否正确传入dry_run非0参数即可
+    def calculate_execution(self, dry_run=0):
         try:
             minute, hour, day, month, weekday = self.parse_crontab()
         except ValueError as e:
-            print(f"定时任务格式错误, 解析失败! error: [{e}]")
+            print(f"定时任务[{self.cron_expr}]格式错误, 解析失败! error: [{e}]")
             return False
 
-        now = datetime.now()
-        current_minute = now.minute
-        current_hour = now.hour
-        current_day = now.day
-        current_month = now.month
-        currnet_weekday = now.weekday()
-    
-        if current_minute in minute and current_hour in hour and current_day in day and current_month in month and currnet_weekday in weekday:
-            print(f"分钟:{current_minute} 小时:{current_hour} 天:{current_day} 月:{current_month} 星期:{currnet_weekday} 符合[{self.cron_expr}]时间规则, 触发任务")
-            return True
+        if dry_run == 0:
+            now = datetime.now()
+            current_minute = now.minute
+            current_hour = now.hour
+            current_day = now.day
+            current_month = now.month
+            currnet_weekday = now.weekday()
+
+            if current_minute in minute and current_hour in hour and current_day in day and current_month in month and currnet_weekday in weekday:
+                print(f"分钟:{current_minute} 小时:{current_hour} 天:{current_day} 月:{current_month} 星期:{currnet_weekday} 符合[{self.cron_expr}]时间规则, 触发任务")
+                return True
+            else:
+                print(f"分钟:{current_minute} 小时:{current_hour} 天:{current_day} 月:{current_month} 星期:{currnet_weekday} 不符合[{self.cron_expr}]时间规则, 不触发任务")
+                return False
         else:
-            print(f"分钟:{current_minute} 小时:{current_hour} 天:{current_day} 月:{current_month} 星期:{currnet_weekday} 不符合[{self.cron_expr}]时间规则, 不触发任务")
-            return False
+            print(f"定时任务[{self.cron_expr}]格式正确!")
+            return True
+
 
 if __name__ == "__main__":
     # 测试
