@@ -70,7 +70,6 @@ class MySQLWrapper:
         query = f"INSERT INTO {table} ({columns}) VALUES ({placeholders})"
         values = tuple(data.values())
         self.execute_query(query, values)
-        self.disconnect()
 
     # 插入多条数据
     def insert_multiple_rows(self, table, data):
@@ -79,27 +78,36 @@ class MySQLWrapper:
         query = f"INSERT INTO {table} ({columns}) VALUES ({placeholders})"
         values = [tuple(row.values()) for row in data]
         self.execute_query(query, values)
-        self.disconnect()
 
+    # 插入多条数据
+    def insert_multiple_rows(self, table, data):
+        columns = ', '.join(data[0].keys())
+        placeholders = ', '.join(['%s'] * len(data[0]))
+        query = f"INSERT INTO {table} ({columns}) VALUES ({placeholders})"
+        values = [tuple(row.values()) for row in data]
+        try:
+            self.cursor.executemany(query, values)
+            self.disconnect()
+        except pymysql.Error as e:
+            print(f"Error executing query: {e}")
+            return False
+    
     # 更新数据
     def update_data(self, table, data, condition):
         column_values = ', '.join([f"{key} = %s" for key in data])
         query = f"UPDATE {table} SET {column_values} WHERE {condition}"
         values = tuple(data.values())
         self.execute_query(query, values)
-        self.disconnect()
 
     # 删除数据
     def delete_data(self, table, condition):
         query = f"DELETE FROM {table} WHERE {condition}"
         self.execute_query(query)
-        self.disconnect()
 
     # 查询存在个数
     def check_value_exists(self, table, column, value):
         query = f"SELECT COUNT(*) FROM {table} WHERE {column} = %s"
         result = self.fetch_data(query, (value,))
-        self.disconnect()
         count = result[0][0]
         return count
 
