@@ -47,9 +47,12 @@ class ParseCrontab():
  
     # 解析时间格式的范围
     def parse_crontab(self):
-        fields = self.cron_expr.split(' ')
-        if len(fields) != 5:
-            raise ValueError("Invalid crontab time format")
+        if self.cron_expr:
+            fields = self.cron_expr.split(' ')
+            if len(fields) != 5:
+                raise ValueError("Invalid crontab time format")
+        else:
+            raise ValueError("Crontab is null")
 
         try:
             minute = self.parse_crontab_field(fields[0], 0, 59, 'minute')
