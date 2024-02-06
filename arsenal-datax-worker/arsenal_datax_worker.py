@@ -338,8 +338,10 @@ class ArsenalDataxWorker():
                     self.mysql_connect.execute_query(update_sync_info_sql)
                 else:
                     print(f"任务[{job_id}]数据同步失败，请查看本次同步日志{log_path}")
+                    return False
             except Exception as e:
                 print(f"任务[{job_id}]同步失败! error: [{e}]")
+                return False
 
         # 增量同步
         elif is_full_sync == 0 and is_incr_sync == 1:
@@ -372,15 +374,18 @@ class ArsenalDataxWorker():
                     self.mysql_connect.execute_query(update_max_value_sql)
                 else:
                     print(f"任务[{job_id}]数据同步失败，请查看本次同步日志{log_path}")
+                    return False
             except Exception as e:
                 print(f"任务[{job_id}]同步失败! error: [{e}]")
-
+                return False
+                
         elif is_full_sync == 0 and is_incr_sync == 0:
             print("已全量同步, 增量开关未打开! ")
-
+            return False
+            
         else:
             print("目前只支持第一次全量更新和后续的增量更新, full_sync和incr_sync为[(1,0)全量不增量],[(0,1)增量],[(0,0)不同步]的组合，[(1,1)全量和增量无法都开启]!")
-
+            return False
 
 if __name__ == "__main__":
 
