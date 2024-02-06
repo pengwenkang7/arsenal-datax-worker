@@ -46,23 +46,30 @@ class ParseCrontab():
         raise ValueError(f"Invalid {field_name} format")
  
     # 解析时间格式的范围
-    def parse_crontab(self, cron_expr):
-        fields = cron_expr.split(' ')
+    def parse_crontab(self):
+        fields = self.cron_expr.split(' ')
         if len(fields) != 5:
             raise ValueError("Invalid crontab time format")
 
-        minute = self.parse_crontab_field(fields[0], 0, 59, 'minute')
-        hour = self.parse_crontab_field(fields[1], 0, 23, 'hour')
-        day = self.parse_crontab_field(fields[2], 1, 31, 'day')
-        month = self.parse_crontab_field(fields[3], 1, 12, 'month')
-        weekday = self.parse_crontab_field(fields[4], 0, 6, 'weekday')
+        try:
+            minute = self.parse_crontab_field(fields[0], 0, 59, 'minute')
+            hour = self.parse_crontab_field(fields[1], 0, 23, 'hour')
+            day = self.parse_crontab_field(fields[2], 1, 31, 'day')
+            month = self.parse_crontab_field(fields[3], 1, 12, 'month')
+            weekday = self.parse_crontab_field(fields[4], 0, 6, 'weekday')
 
-        return minute, hour, day, month, weekday
+            return minute, hour, day, month, weekday
+        except ValueError as e:
+            raise ValueError(f"{e}")
 
-    # 判断当前时间是否需要执行, 需要返回True, 不需要返回False
+    # 判断当前时间是否需要执行, 需要返回True, 不需要返回False, 也可用于判断定时任务格式是否正确
     def calculate_execution(self):
-        minute, hour, day, month, weekday = self.parse_crontab(self.cron_expr)
-    
+        try:
+            minute, hour, day, month, weekday = self.parse_crontab()
+        except ValueError as e:
+            print(f"定时任务格式错误, 解析失败! error: [{e}]")
+            return False
+
         now = datetime.now()
         current_minute = now.minute
         current_hour = now.hour
@@ -80,7 +87,7 @@ class ParseCrontab():
 if __name__ == "__main__":
     # 测试
     try:
-        cron_expr = '* * * * *'
+        cron_expr = '* * * * * *'
         a=ParseCrontab(cron_expr)
         print(a.calculate_execution())
     except ValueError as e:
