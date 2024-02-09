@@ -34,40 +34,57 @@ class MigrateTable():
     # 迁移表
     def migrate_table(self):
 
-        src_source_conn = self.get_source_conn(self.src_source_id)
-        dest_source_conn = self.get_source_conn(self.dest_source_id)
+        src_source_url, src_source_port, src_source_database, src_source_user, src_source_passwd = self.get_source_conn(self.src_source_id)
+        dest_source_url, dest_source_port, dest_source_database, dest_source_user, dest_source_passwd = self.get_source_conn(self.dest_source_id)
 
-        if not src_source_conn:
-            print(f"获取来源数据源[{self.src_source_id}]的MySQL连接失败!")
+        try:
+            src_source_conn=pymysql.connect(host=src_source_url, port=src_source_port, user=src_source_user, password=src_source_passwd, database=src_source_database, charset='utf8')
+        except Exception as e:
+            print(f"获取源数据库连接失败! error:[{e}]")
             return False
-        elif not dest_source_conn:
-            print(f"获取目标数据源[{self.dest_source_id}]的MySQL连接失败!")
+        # 检查目的数据库是否存在，不存在则创建
+        try:
+            tmp_dest_source_conn = pymysql.connect(host=dest_source_url, port=dest_source_port, user=dest_source_user, password=dest_source_passwd, charset='utf8')
+            with tmp_dest_source_conn.cursor() as cursor:
+                sql="show databases like" + '"%' + dest_source_database + '%";'
+                cursor.execute(sql)
+                result=cursor.fetchall()
+                if len(result) == 0:
+                    sql=f"CREATE DATABASE `{dest_source_database}` DEFAULT CHARACTER SET UTF8"
+                    cursor.execute(sql)
+            dest_source_conn = pymysql.connect(host=dest_source_url, port=dest_source_port, user=dest_source_user, password=dest_source_passwd, database=dest_source_database, charset='utf8')
+        except Exception as e:
+            print(f"获取目的数据库连接失败! error:[{e}]")
             return False
+
+        if len(self.table_list) == 0:
+            with src_source_conn.cursor() as cursor:
+                cursor.execute("show tables;")
+                result=cursor.fetchall()
+                for t in result:
+                    self.table_list.append(t[0])
 
         for table_name in self.table_list:
             with src_source_conn.cursor() as cursor:
-                cursor.execute(f"show create table `{table_name}`;")
+                cursor.execute(f"show create table {table_name};")
                 result=cursor.fetchall()
                 if len(result) == 0:
                     print(f"数据源[{self.src_source_id}]中获取表[{table_name}]的建表语句失败!")
                     return False
-
                 else:
                     create_table_sql=result[0][1]
 
             with dest_source_conn.cursor() as cursor:
-                cursor.execute(f"show tables like '{table_name}';")
+                cursor.execute("show tables like '%s';" %table_name)
                 result=cursor.fetchall()
                 if len(result) == 0:
                     # 将自增ID设置为0
                     create_table_sql = re.sub(r'AUTO_INCREMENT=\d*', r'AUTO_INCREMENT=0', create_table_sql)
                     cursor.execute(create_table_sql)
                     dest_source_conn.commit()
-                    print(f"目的数据源[{self.dest_source_id}]中表[{table_name}]已创建!")
-                    return True
+                    print(f"数据源[{self.dest_source_id}]中表[{table_name}]已创建!")
                 else:
-                    print(f"目的数据源[{self.dest_source_id}]中表[{table_name}]已存在!")
-                    return True
+                    print(f"数据源[{self.dest_source_id}]中表[{table_name}]已存在!")
 
 if __name__ == "__main__":
 
