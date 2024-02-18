@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 # 只适用于迁移数据源的表结构，使用show create table查到建表语句并在目标库执行,保持库和表名保持一致
+import os, sys
+sys.path.append(f'{os.getcwd()}')
+
 import re
 import pymysql
 from util.mysql_wrapper import MySQLWrapper
@@ -11,12 +14,12 @@ class MigrateTable():
         self.src_source_id=src_source_id
         self.dest_source_id=dest_source_id
         self.table_list=table_list
-        self.mysql_connect = MySQLWrapper()
+        self.mysql_connect=MySQLWrapper()
 
     # 根据source_id从数据库中获取数据源的连接信息
     def get_source_conn(self, source_id):
         self.mysql_connect.connect()
-        sql = f"select source_url,source_port,source_database,source_user,source_passwd from arsenal_data_source where source_id='{source_id}'"
+        sql = f"SELECT source_url,source_port,source_database,source_user,source_passwd FROM arsenal_data_source WHERE source_id='{source_id}'"
         source_data = self.mysql_connect.fetch_data(sql)
 
         if source_data:
@@ -25,12 +28,11 @@ class MigrateTable():
             source_database=source_data[0]["source_database"]
             source_user=source_data[0]["source_user"]
             source_passwd=source_data[0]["source_passwd"]
-            source_conn = pymysql.connect(host=source_url, port=source_port, user=source_user, password=source_passwd, database=source_database, charset='utf8')
-            return source_conn
+            return source_url,source_port,source_database,source_user,source_passwd            
         else:
             print(f"数据源[{source_id}]不存在!")
             return False
-        
+
     # 迁移表
     def migrate_table(self):
 
@@ -46,7 +48,7 @@ class MigrateTable():
         try:
             tmp_dest_source_conn = pymysql.connect(host=dest_source_url, port=dest_source_port, user=dest_source_user, password=dest_source_passwd, charset='utf8')
             with tmp_dest_source_conn.cursor() as cursor:
-                sql="show databases like" + '"%' + dest_source_database + '%";'
+                sql="SHOW DATABASES LIKE" + '"' + dest_source_database + '";'
                 cursor.execute(sql)
                 result=cursor.fetchall()
                 if len(result) == 0:
@@ -59,14 +61,15 @@ class MigrateTable():
 
         if len(self.table_list) == 0:
             with src_source_conn.cursor() as cursor:
-                cursor.execute("show tables;")
+                cursor.execute("SHOW FULL TABLES WHERE Table_type = 'BASE TABLE';")
                 result=cursor.fetchall()
+
                 for t in result:
                     self.table_list.append(t[0])
 
         for table_name in self.table_list:
             with src_source_conn.cursor() as cursor:
-                cursor.execute(f"show create table {table_name};")
+                cursor.execute(f"SHOW CREATE TABLE {table_name};")
                 result=cursor.fetchall()
                 if len(result) == 0:
                     print(f"数据源[{self.src_source_id}]中获取表[{table_name}]的建表语句失败!")
@@ -75,7 +78,7 @@ class MigrateTable():
                     create_table_sql=result[0][1]
 
             with dest_source_conn.cursor() as cursor:
-                cursor.execute("show tables like '%s';" %table_name)
+                cursor.execute(f"SHOW TABLES LIKE '{table_name}';")
                 result=cursor.fetchall()
                 if len(result) == 0:
                     # 将自增ID设置为0
