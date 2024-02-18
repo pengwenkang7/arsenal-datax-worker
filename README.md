@@ -28,10 +28,10 @@ Redis:7.0 \
 通过启动容器时增加配置环境变量来区分主从节点
 
 ### 主节点启动方式: 
-docker run -tid --name {your_container_name} -e ROLE=MASTER -p5555:5555 image_id \
+docker run -tid --name {your_container_name} -e ROLE=MASTER -p5555:5555 image_id
 
 ### 从节点启动方式: 
-docker run -tid --name {your_container_name} -e ROLE=SLAVE -e QUEUE={job_queue} -e CONC={job_concurrency} -e WORKER_NAME={worker_name} image_id \
+docker run -tid --name {your_container_name} -e ROLE=SLAVE -e QUEUE={job_queue} -e CONC={job_concurrency} -e WORKER_NAME={worker_name} image_id
 
 ### 环境变量含义: 
 ROLE 节点角色, 可选MASTER SLAVE两种, 不指定默认为slave节点 \
