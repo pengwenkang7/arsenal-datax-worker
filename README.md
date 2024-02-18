@@ -13,8 +13,8 @@ Redis:7.0 \
 修改MySQL配置 config/mysql.ini \
 修改celery配置 config/celery_config.py \
 修改Redis配置 config/redis.ini \
-本程序建议集成为Docker镜像, 集成了datax关于mysql的插件,支持5.7和8.0的互相传输,打包后启动即可使用 \
-服务分为master和slave节点, master负责调度和监控不运行任务，slave节点根据指定队列运行相应的任务
+本程序建议集成为Docker镜像, 集成了datax关于mysql的插件, 支持5.7和8.0的互相传输, 依赖Datax的reader和writer, 打包后启动即可使用 \
+服务分为master和slave节点, master负责调度和监控不运行任务, slave节点根据指定队列运行相应的任务
 
 ## Docker打包
 需准备基础镜像替换到Dockerfile中,使用的基础镜像中必须带有java1.8 python2.7 python3.8 \
@@ -27,7 +27,7 @@ Redis:7.0 \
 ## Docker启动方式
 通过启动容器时增加配置环境变量来区分主从节点
 
-### 主节点启动方式: \
+### 主节点启动方式: 
 docker run -tid --name {your_container_name} -e ROLE=MASTER -p5555:5555 image_id \
 
 ### 从节点启动方式: 
