@@ -68,26 +68,32 @@ class MigrateTable():
                     self.table_list.append(t[0])
 
         for table_name in self.table_list:
-            with src_source_conn.cursor() as cursor:
-                cursor.execute(f"SHOW CREATE TABLE {table_name};")
-                result=cursor.fetchall()
-                if len(result) == 0:
-                    print(f"数据源[{self.src_source_id}]中获取表[{table_name}]的建表语句失败!")
-                    return False
-                else:
-                    create_table_sql=result[0][1]
+            try:
+                with src_source_conn.cursor() as cursor:
+                    cursor.execute(f"SHOW CREATE TABLE {table_name};")
+                    result=cursor.fetchall()
+                    if len(result) == 0:
+                        print(f"数据源[{self.src_source_id}]中获取表[{table_name}]的建表语句失败!")
+                        return False
+                    else:
+                        create_table_sql=result[0][1]
 
-            with dest_source_conn.cursor() as cursor:
-                cursor.execute(f"SHOW TABLES LIKE '{table_name}';")
-                result=cursor.fetchall()
-                if len(result) == 0:
-                    # 将自增ID设置为0
-                    create_table_sql = re.sub(r'AUTO_INCREMENT=\d*', r'AUTO_INCREMENT=0', create_table_sql)
-                    cursor.execute(create_table_sql)
-                    dest_source_conn.commit()
-                    print(f"数据源[{self.dest_source_id}]中表[{table_name}]已创建!")
-                else:
-                    print(f"数据源[{self.dest_source_id}]中表[{table_name}]已存在!")
+                with dest_source_conn.cursor() as cursor:
+                    cursor.execute(f"SHOW TABLES LIKE '{table_name}';")
+                    result=cursor.fetchall()
+                    if len(result) == 0:
+                        # 将自增ID设置为0
+                        create_table_sql = re.sub(r'AUTO_INCREMENT=\d*', r'AUTO_INCREMENT=0', create_table_sql)
+                        cursor.execute(create_table_sql)
+                        dest_source_conn.commit()
+                        print(f"数据源[{self.dest_source_id}]中表[{table_name}]已创建!")
+                        return True
+                    else:
+                        print(f"数据源[{self.dest_source_id}]中表[{table_name}]已存在!")
+                        return True
+            except Exception as e:
+                print(f"数据源[{self.dest_source_id}]中表[{table_name}]迁移失败 error: [{e}]")
+                return False
 
 if __name__ == "__main__":
 
