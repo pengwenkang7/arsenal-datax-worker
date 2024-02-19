@@ -73,7 +73,7 @@ def run_data_sync(job_id):
         if running_status:
             return f"任务[{job_id}]已在运行,跳过本次运行"
         try:
-            ArsenalDataxWorker().main_handle(job_id)
+            ArsenalDataxWorker(job_id).main_handle()
         except Exception as e:
             return f"任务[{job_id}]执行失败, 报错信息: {e}"
         return f"任务[{job_id}]执行成功!"

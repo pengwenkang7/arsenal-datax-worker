@@ -11,13 +11,14 @@ from util.migrate_table import MigrateTable
 
 class ArsenalDataxWorker():
 
-    def __init__(self):
+    def __init__(self, job_id):
         self.mysql_connect = MySQLWrapper()
+        self.job_info = self.get_job_info(job_id)
 
     # 根据源库信息查询该表的所有字段
     def get_columns_by_table_name(self, db_url, db_port, username, password, database, table):
         conn=pymysql.connect(host=db_url, port=int(db_port), user=username, password=password, database=database, charset='utf8')
-        sql = f'select COLUMN_NAME from information_schema.COLUMNS where TABLE_NAME = "{table}";'
+        sql = f'SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_NAME = "{table}";'
         try:
             with conn.cursor() as cursor:
                 cursor.execute(sql)
@@ -38,7 +39,7 @@ class ArsenalDataxWorker():
     # 根据source_id获取数据库连接信息
     def get_db_info_by_source_id(self, source_id):
         source_info = {}
-        sql = f'select * from arsenal_data_source where source_id="{source_id}"'
+        sql = f'SELECT * FROM arsenal_data_source WHERE source_id="{source_id}"'
         self.mysql_connect.connect()
         result=self.mysql_connect.fetch_data(sql)
         if result:
@@ -110,17 +111,28 @@ class ArsenalDataxWorker():
             print(f"获取目的数据源[{dest_source_id}]信息出错!")
             return False
 
+        # 预置检查, 检查目的表是否存在, 只处理同名表
+        check_table_list = []
+        check_table_list.append(f"{src_table}:{dest_table}")
+        check_result=MigrateTable(src_source_id, dest_source_id, check_table_list).migrate_table()
+        if check_result:
+            print(f"任务[{job_id}]预置检查通过!")
+        else:
+            print(f"任务[{job_id}]预置检查未通过!")
+            return False
+
         src_cloumn=self.get_columns_by_table_name(src_source_info['source_url'], src_source_info['source_port'], src_source_info['source_user'], src_source_info['source_passwd'], job_info['src_database'], src_table)
         dest_cloumn=self.get_columns_by_table_name(dest_source_info['source_url'], dest_source_info['source_port'], dest_source_info['source_user'], dest_source_info['source_passwd'], job_info['dest_database'], dest_table)
         sync_column_list=[]
 
         # 如果指定列则判断每列在两侧数据源中是否存在,否则以源表全部列为准
         if sync_column:
-            column_list=sync_column.split(",")
+            sync_column = sync_column.replace(" ", "").replace("\t", "").replace("\n", "")
+            column_list = sync_column.split(",")
             for col in column_list:
-                col='`'+col+'`'
+                col=f"`{col}`"
                 if col not in src_cloumn and col not in dest_cloumn:
-                    print(f"列[{col}]在源表和目标表有差异,请对比后再重新同步!")
+                    print(f"列[{col}]在源表和目标表都不存在,请对比后再重新同步!")
                     return False
                 else:
                     sync_column_list.append(col)
@@ -133,35 +145,32 @@ class ArsenalDataxWorker():
                     pass
             sync_column_list=src_cloumn
         else:
+            print(f"获取表[{src_table}][{dest_table}]列信息失败")
             return False
         job_info['sync_column_list']=sync_column_list
         
         return job_info
 
     # 生成datax的json文件
-    def create_datax_json(self, job_id):
-        job_info=self.get_job_info(job_id)
-        if not job_info:
-            print(f"获取任务[{job_id}]信息出错,创建json文件失败,同步中止!")
-            return False
+    def create_datax_json(self):
         # 源库配置
-        src_jdbc_url=f"jdbc:mysql://{job_info['src_url']}:{job_info['src_port']}/{job_info['src_database']}?characterEncoding=UTF-8&useSSL=false" 
-        src_table=job_info['src_table']
-        src_username=job_info['src_user']
-        src_password=job_info['src_passwd']
+        src_jdbc_url=f"jdbc:mysql://{self.job_info['src_url']}:{self.job_info['src_port']}/{self.job_info['src_database']}?characterEncoding=UTF-8&useSSL=false" 
+        src_table=self.job_info['src_table']
+        src_username=self.job_info['src_user']
+        src_password=self.job_info['src_passwd']
         # 目标库配置
-        dest_jdbc_url=f"jdbc:mysql://{job_info['dest_url']}:{job_info['dest_port']}/{job_info['dest_database']}?characterEncoding=UTF-8&useSSL=false"
-        dest_table=job_info['dest_table']
-        dest_username=job_info['dest_user']
-        dest_password=job_info['dest_passwd']
+        dest_jdbc_url=f"jdbc:mysql://{self.job_info['dest_url']}:{self.job_info['dest_port']}/{self.job_info['dest_database']}?characterEncoding=UTF-8&useSSL=false"
+        dest_table=self.job_info['dest_table']
+        dest_username=self.job_info['dest_user']
+        dest_password=self.job_info['dest_passwd']
         # 同步配置
-        sync_column_list=job_info['sync_column_list']
-        sync_key=job_info['sync_key']
-        current_sync_value=job_info['current_sync_value']
-        is_full_sync=job_info['is_full_sync']
-        is_incr_sync=job_info['is_incr_sync']
-        write_mode=job_info['write_mode']
-        condition=job_info['condition']
+        sync_column_list=self.job_info['sync_column_list']
+        sync_key=self.job_info['sync_key']
+        current_sync_value=self.job_info['current_sync_value']
+        is_full_sync=self.job_info['is_full_sync']
+        is_incr_sync=self.job_info['is_incr_sync']
+        write_mode=self.job_info['write_mode']
+        condition=self.job_info['condition']
 
         json_body = {}
         json_body['job'] = {"content" : [{ "reader" : {},
@@ -233,38 +242,27 @@ class ArsenalDataxWorker():
         return json_result
 
     # 全量和增量的处理逻辑
-    def main_handle(self, job_id):
-        job_info=self.get_job_info(job_id)
-        if not job_info:
+    def main_handle(self):
+        if not self.job_info:
             return False
 
-        src_source_id=job_info['src_source_id']
-        src_url=job_info['src_url']
-        src_port=job_info['src_port']
-        src_db=job_info['src_database']
-        src_table=job_info['src_table']
-        src_username=job_info['src_user']
-        src_password=job_info['src_passwd']
-        src_dbtype=job_info['src_dbtype']
+        src_source_id=self.job_info['src_source_id']
+        src_url=self.job_info['src_url']
+        src_port=self.job_info['src_port']
+        src_db=self.job_info['src_database']
+        src_table=self.job_info['src_table']
+        src_username=self.job_info['src_user']
+        src_password=self.job_info['src_passwd']
+        src_dbtype=self.job_info['src_dbtype']
 
-        dest_source_id=job_info['dest_source_id']
-        dest_table=job_info['dest_table']
-        dest_dbtype=job_info['dest_dbtype']
+        dest_source_id=self.job_info['dest_source_id']
+        dest_table=self.job_info['dest_table']
+        dest_dbtype=self.job_info['dest_dbtype']
 
-        is_full_sync=job_info['is_full_sync']
-        is_incr_sync=job_info['is_incr_sync']
-        sync_key=job_info['sync_key']
-        current_sync_value=job_info['current_sync_value']
-
-        # 预置检查,检查目的表是否存在, 只处理同名表
-        check_table_list = []
-        check_table_list.append(src_table)
-        check_result=MigrateTable(src_source_id, dest_source_id, check_table_list).migrate_table()
-        if check_result:
-            print(f"任务[{job_id}]预置检查通过!")
-        else:
-            print(f"任务[{job_id}]预置检查未通过!")
-            return False
+        is_full_sync=self.job_info['is_full_sync']
+        is_incr_sync=self.job_info['is_incr_sync']
+        sync_key=self.job_info['sync_key']
+        current_sync_value=self.job_info['current_sync_value']
 
         # 查目前的最大值,在全量同步或者增量结束后更新到数据库中,如果最大值为空,则表示表为空表
         try:
@@ -315,7 +313,7 @@ class ArsenalDataxWorker():
             log_path = f"{log_dir}/{log_name}"
 
             with open(json_path, "w") as f:
-                json_data=self.create_datax_json(job_id)
+                json_data=self.create_datax_json()
                 if json_data:
                     f.write(json_data)
             try:
@@ -338,10 +336,8 @@ class ArsenalDataxWorker():
                     self.mysql_connect.execute_query(update_sync_info_sql)
                 else:
                     print(f"任务[{job_id}]数据同步失败，请查看本次同步日志{log_path}")
-                    return False
             except Exception as e:
                 print(f"任务[{job_id}]同步失败! error: [{e}]")
-                return False
 
         # 增量同步
         elif is_full_sync == 0 and is_incr_sync == 1:
@@ -352,7 +348,7 @@ class ArsenalDataxWorker():
             log_path = f"{log_dir}/{log_name}"
 
             with open(json_path, "w") as f:
-                json_data=self.create_datax_json(job_id)
+                json_data=self.create_datax_json()
                 if json_data:
                     f.write(json_data)
             try:
@@ -374,21 +370,18 @@ class ArsenalDataxWorker():
                     self.mysql_connect.execute_query(update_max_value_sql)
                 else:
                     print(f"任务[{job_id}]数据同步失败，请查看本次同步日志{log_path}")
-                    return False
             except Exception as e:
                 print(f"任务[{job_id}]同步失败! error: [{e}]")
-                return False
-                
+
         elif is_full_sync == 0 and is_incr_sync == 0:
             print("已全量同步, 增量开关未打开! ")
-            return False
-            
+
         else:
             print("目前只支持第一次全量更新和后续的增量更新, full_sync和incr_sync为[(1,0)全量不增量],[(0,1)增量],[(0,0)不同步]的组合，[(1,1)全量和增量无法都开启]!")
-            return False
+
 
 if __name__ == "__main__":
 
     job_id = sys.argv[1]
-    ArsenalDataxWorker().main_handle(job_id)
+    ArsenalDataxWorker(job_id).main_handle()
 
