@@ -18,7 +18,7 @@ class ArsenalDataxWorker():
     # 根据源库信息查询该表的所有字段
     def get_columns_by_table_name(self, db_url, db_port, username, password, database, table):
         conn=pymysql.connect(host=db_url, port=int(db_port), user=username, password=password, database=database, charset='utf8')
-        sql = f'SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_NAME = "{table}";'
+        sql = f'SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_NAME = "{table}" and TABLE_SCHEMA = "{database}";'
         try:
             with conn.cursor() as cursor:
                 cursor.execute(sql)
