@@ -191,8 +191,9 @@ class ArsenalDataxWorker():
         if is_full_sync == 1 and is_incr_sync == 0:
             if condition:
                 query_sql = f'select * from `{src_table}` where {condition}' 
-                json_body['job']['content'][0]['reader']['parameter']['connection'][0]['querySql'] = [query_sql] 
-            json_body['job']['content'][0]['reader']['parameter']['connection'][0]['table'] = [f'`{src_table}`']
+                json_body['job']['content'][0]['reader']['parameter']['connection'][0]['querySql'] = [query_sql]
+            else:
+                json_body['job']['content'][0]['reader']['parameter']['connection'][0]['table'] = [f'`{src_table}`']
             json_body['job']['content'][0]['reader']['parameter']['column'] = sync_column_list
         elif is_full_sync == 0 and is_incr_sync == 1 and current_sync_value != 0:
             if condition:
