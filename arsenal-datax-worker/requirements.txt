@@ -1,4 +1,4 @@
-pymysql==0.7.11
+pymysql==1.1.1
 arrow==1.2.3
 celery==4.4.7
 flower==0.9.7
